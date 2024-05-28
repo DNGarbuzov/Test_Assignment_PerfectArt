@@ -1,0 +1,78 @@
+import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def generate_time_series(alpha, beta, gamma, delta, size):
+    return stats.levy_stable.rvs(alpha, beta, loc=delta, scale=gamma, size=size)
+
+def monte_carlo_simulation(alpha, beta, gamma, delta, n, n_days, n_simulations):
+    simulated_prices = generate_time_series(alpha, beta, gamma, delta, (n, n_simulations))
+    simulated_returns_10d = (simulated_prices[n_days:, :] - simulated_prices[:-n_days, :]) / simulated_prices[:-n_days, :]
+    return np.percentile(simulated_returns_10d, 1, axis=0)
+
+
+# Parameters of the stable distribution
+alpha = 1.7
+beta = 0.0
+gamma = 1.0
+delta = 1.0
+n = 750  # Size of the time series (3 years with 250 days each)
+n_days = 10  # Number of days for returns
+n_simulations = 10000  # Number of simulations
+
+# Generating the time series
+np.random.seed(42)
+prices = generate_time_series(alpha, beta, gamma, delta, n)
+
+# Computing 1-day returns
+# returns_1d = np.diff(prices) / prices[:-1]
+
+# Computing 10-day returns
+returns_10d = (prices[n_days:] - prices[:-n_days]) / prices[:-n_days]
+
+# Performing the simulation
+mc_results = monte_carlo_simulation(alpha, beta, gamma, delta, n, n_days, n_simulations)
+
+# Visualizing the original time series of prices
+plt.figure(figsize=(12, 6))
+plt.plot(prices)
+plt.title('Original Time Series')
+plt.xlabel('Days')
+plt.ylabel('Prices')
+plt.show()
+
+# Plotting the PDF of the stable distribution
+x_range = np.linspace(-5, 5, 1000)
+pdf_values = stats.levy_stable.pdf(x_range, alpha, beta, loc=delta, scale=gamma)
+plt.figure(figsize=(12, 6))
+plt.plot(x_range, pdf_values, label=f'alpha={alpha}, beta={beta}, gamma={gamma}, delta={delta}')
+plt.title('Probability Density Function of the Stable Distribution')
+plt.xlabel('Value')
+plt.ylabel('Density')
+plt.legend()
+plt.show()
+
+# Plotting the histogram of Monte Carlo simulation results
+plt.figure(figsize=(12, 6))
+sns.histplot(mc_results, bins=50, kde=True)
+plt.title('Distribution of 0.01 quantile of 10-day returns')
+plt.xlabel('0.01 quantile of 10-day returns')
+plt.ylabel('Frequency')
+plt.show()
+
+# Evaluating the sufficiency of the number of simulations
+mean_result = np.mean(mc_results)
+std_result = np.std(mc_results)
+print(f"Mean of 0.01 quantile: {mean_result}")
+print(f"Standard deviation of 0.01 quantile: {std_result}")
+
+# Visualization of convergence for Monte Carlo simulation
+plt.figure(figsize=(12, 6))
+convergence = np.cumsum(mc_results) / np.arange(1, n_simulations + 1)
+plt.plot(convergence)
+plt.title("Convergence of 0.01 quantile estimate")
+plt.xlabel("Number of Simulations")
+plt.ylabel("Estimate of 0.01 quantile")
+plt.axhline(y=mean_result, color='r', linestyle='--')
+plt.show()
